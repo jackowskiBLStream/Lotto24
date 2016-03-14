@@ -8,6 +8,8 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -27,7 +29,11 @@ public class PixelGridView extends View {
     private Paint borderPaint = new Paint();
     private Bitmap bitmap;
     private int checkedCounter;
-    private boolean[][] cellChecked;
+    private boolean[][] cellChecked = null;
+    private int height, width;
+
+    private boolean isSaved = false;
+
 
     public PixelGridView(Context context, int numColumns, int numRows) throws IOException {
         this(context, null, numColumns, numRows);
@@ -44,6 +50,8 @@ public class PixelGridView extends View {
         greenPaint.setStrokeWidth(10);
         borderPaint.setStyle(Paint.Style.STROKE);
         borderPaint.setStrokeWidth(20);
+        setSaveEnabled(true);
+
        /* cellWidth = getWidth() / numColumns;
         cellHeight = getHeight() / numRows;*/
         //borderPaint.setColor(Color.YELLOW);
@@ -116,8 +124,11 @@ public class PixelGridView extends View {
             cellWidth = getWidth() / numColumns;
             cellHeight = cellWidth;
         }
+//TODO: init only once!
+        if (cellChecked == null) {
+            cellChecked = new boolean[numColumns][numRows];
+        }
 
-        cellChecked = new boolean[numColumns][numRows];
 
         invalidate();
     }
@@ -130,8 +141,7 @@ public class PixelGridView extends View {
             return;
         }
 
-        int width;
-        int height;
+
         if (getWidth() > getHeight()) {
             height = getHeight();
             width = height;
@@ -192,9 +202,10 @@ public class PixelGridView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN && event.getX() < width - 5 && event.getY() < height - 5) {
             int column = (int) (event.getX() / cellWidth);
             int row = (int) (event.getY() / cellHeight);
+
 
             if (checkedCounter == 6 && !cellChecked[column][row]) {
 
@@ -206,10 +217,78 @@ public class PixelGridView extends View {
                 checkedCounter++;
             }
 
+
             // Log.d("No. counter: ", String.valueOf(checkedCounter));
             invalidate();
         }
 
         return true;
+    }
+
+    @Override
+    public Parcelable onSaveInstanceState() {
+        Parcelable superState = super.onSaveInstanceState();
+        SavedState ss = new SavedState(superState);
+        //ss.value = currentValue;
+        ss.mArray = cellChecked;
+        ss.mCheckCounter = checkedCounter;
+        isSaved = true;
+        return ss;
+    }
+
+    @Override
+    public void onRestoreInstanceState(Parcelable state) {
+        SavedState ss = (SavedState) state;
+        super.onRestoreInstanceState(ss.getSuperState());
+        // currentValue = ss.value;
+        cellChecked = ss.mArray;
+        checkedCounter = ss.mCheckCounter;
+    }
+
+    private static class SavedState extends BaseSavedState {
+        public static final Parcelable.Creator<SavedState> CREATOR
+                = new Parcelable.Creator<SavedState>() {
+            public SavedState createFromParcel(Parcel in) {
+                return new SavedState(in);
+            }
+
+            public SavedState[] newArray(int size) {
+                return new SavedState[size];
+            }
+        };
+        boolean[][] mArray; //this will store the current value
+        int mCheckCounter;
+
+        SavedState(Parcelable superState) {
+            super(superState);
+        }
+
+        private SavedState(Parcel in) {
+            super(in);
+            boolean[][] array;
+            //array = in.readArray(ClassLoader.getSystemClassLoader())
+            final int N = in.readInt();
+            array = new boolean[N][N];
+            for (int i = 0; i < N; i++) {
+                array[i] = in.createBooleanArray();
+            }
+            mArray = array;
+            mCheckCounter = in.readInt();
+            // array = in.readBooleanArray();
+        }
+
+        @Override
+        public void writeToParcel(Parcel out, int flags) {
+            super.writeToParcel(out, flags);
+            //out.writeInt(array);
+            final int N = mArray.length;
+            out.writeInt(N);
+            for (int i = 0; i < N; i++) {
+                out.writeBooleanArray(mArray[i]);
+            }
+            out.writeInt(mCheckCounter);
+
+            // out.writeTypedArray(array);
+        }
     }
 }
