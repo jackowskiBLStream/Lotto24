@@ -8,8 +8,11 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.Typeface;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -22,9 +25,11 @@ import java.io.InputStream;
  * Created by blstream on 3/14/2016.
  */
 public class PixelGridView extends View {
+
+
     private int numColumns, numRows;
     private int cellWidth, cellHeight;
-    private Paint blackPaint = new Paint();
+    private TextPaint textPaint = new TextPaint();
     private Paint greenPaint = new Paint();
     private Paint borderPaint = new Paint();
     private Bitmap bitmap;
@@ -42,9 +47,10 @@ public class PixelGridView extends View {
 
     public PixelGridView(Context context, AttributeSet attrs, int numColumns, int numRows) throws IOException {
         super(context, attrs);
+        //Init only once(Manifest android:configChanges)
         this.numColumns = numColumns;
         this.numRows = numRows;
-        blackPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+        textPaint.setStyle(Paint.Style.FILL_AND_STROKE);
         greenPaint.setStyle(Paint.Style.FILL_AND_STROKE);
         greenPaint.setColor(Color.GREEN);
         greenPaint.setStrokeWidth(10);
@@ -52,14 +58,9 @@ public class PixelGridView extends View {
         borderPaint.setStrokeWidth(20);
         setSaveEnabled(true);
 
-       /* cellWidth = getWidth() / numColumns;
-        cellHeight = getHeight() / numRows;*/
-        //borderPaint.setColor(Color.YELLOW);
-        // cellChecked = new boolean[numColumns][numRows];
-        decodeCheckMark();
+
 
     }
-
     public Bitmap getResizedBitmap(Bitmap bm, int newHeight, int newWidth) {
         int width = bm.getWidth();
         int height = bm.getHeight();
@@ -79,7 +80,7 @@ public class PixelGridView extends View {
         InputStream inputStream = assetManager.open("check.png");
         // bitmap = decodeSampledBitmapFromStream(inputStream, 100, 100 );
         bitmap = BitmapFactory.decodeStream(inputStream);
-        bitmap = getResizedBitmap(bitmap, 100, 100);
+        bitmap = getResizedBitmap(bitmap, cellWidth, cellHeight);
         inputStream.close();
     }
 
@@ -129,7 +130,7 @@ public class PixelGridView extends View {
             cellChecked = new boolean[numColumns][numRows];
         }
 
-
+        decodeCheckMark();
         invalidate();
     }
 
@@ -140,7 +141,7 @@ public class PixelGridView extends View {
         if (numColumns == 0 || numRows == 0) {
             return;
         }
-
+        setColors();
 
         if (getWidth() > getHeight()) {
             height = getHeight();
@@ -149,39 +150,58 @@ public class PixelGridView extends View {
             width = getWidth();
             height = width;
         }
+        drawNumbers(canvas);
+        drawCheckMarks(canvas);
 
+        drawChessBoard(borderPaint, canvas, height, width);
+        Log.d("No. counter: ", String.valueOf(checkedCounter));
+
+        //drawBorder(borderPaint, canvas, height, width);
+
+
+    }
+
+    private void drawCheckMarks(Canvas canvas) {
+        //Drawing checkMark
         for (int i = 0; i < numColumns; i++) {
             for (int j = 0; j < numRows; j++) {
                 if (cellChecked[i][j]) {
                     canvas.drawBitmap(bitmap, i * cellWidth, j * cellHeight,
-                            blackPaint);
+                            textPaint);
 
                 }
             }
         }
+    }
 
-        drawChessBoard(greenPaint, canvas, height, width);
-        Log.d("No. counter: ", String.valueOf(checkedCounter));
-
-        drawBorder(borderPaint, canvas, height, width);
-
+    public void drawNumbers(Canvas canvas) {
         //drawNumbers
-        blackPaint.setTextSize(50);
+        textPaint.setTextSize(cellHeight * 0.5f);
         //TODO: text should takes 50% of height
         for (int i = 0; i < numColumns; i++) {
             for (int j = 0; j < numRows; j++) {
-                if ((i * numRows + j) + 1 >= 10) {
-                    canvas.drawText(String.valueOf((i * numRows + j) + 1), (j + 1) * cellWidth - cellWidth / 2 - 20, (i + 1) * cellHeight - cellHeight / 2 + 15, blackPaint);
-                } else {
-                    canvas.drawText(String.valueOf((i * numRows + j) + 1), (j + 1) * cellWidth - cellWidth / 2 - 10, (i + 1) * cellHeight - cellHeight / 2 + 15, blackPaint);
-                }
-
+                    canvas.drawText(String.valueOf((i * numRows + j + 1)), (j + 1)
+                            * cellWidth - cellWidth / 2 - textPaint.measureText
+                            (String.valueOf((i * numRows + j + 1))) / 2, (i + 1) * cellHeight -
+                            cellHeight / 2 - (textPaint.descent() + textPaint.ascent()) / 2, textPaint);
             }
+        }
+
+    }
+
+    public void setColors() {
+        if (checkedCounter == 6) {
+            borderPaint.setColor(Color.GREEN);
+            textPaint.setColor(Color.GREEN);
+        } else {
+            borderPaint.setARGB(255, 255, 160, 0);
+            textPaint.setARGB(255, 255, 160, 0);
         }
     }
 
     //TODO: height = width
     public void drawChessBoard(Paint paint, Canvas canvas, int height, int width) {
+
         for (int i = 1; i < numColumns; i++) {
             canvas.drawLine(i * cellWidth, 0, i * cellWidth, height, paint);
         }
@@ -189,14 +209,16 @@ public class PixelGridView extends View {
         for (int i = 1; i < numRows; i++) {
             canvas.drawLine(0, i * cellHeight, width, i * cellHeight, paint);
         }
+
+        canvas.drawRect(0, 0, width, height, paint);
     }
 
     public void drawBorder(Paint paint, Canvas canvas, int height, int width) {
-        if (checkedCounter == 6) {
+/*        if (checkedCounter == 6) {
             paint.setColor(Color.GREEN);
         } else {
             paint.setColor(Color.YELLOW);
-        }
+        }*/
         canvas.drawRect(0, 0, width, height, paint);
     }
 

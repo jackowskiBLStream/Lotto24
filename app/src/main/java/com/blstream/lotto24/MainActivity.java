@@ -14,7 +14,7 @@ public class MainActivity extends AppCompatActivity {
        // setContentView(R.layout.activity_main);
         PixelGridView pixelGrid = null;
         try {
-            pixelGrid = new PixelGridView(this, 7, 7);
+            pixelGrid = new PixelGridView(this, 10, 10);
         } catch (IOException e) {
             e.printStackTrace();
         }
