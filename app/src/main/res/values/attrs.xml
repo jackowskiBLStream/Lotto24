@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="PixelGridView">
+        <attr name="numColums" format="integer"/>
+        <attr name="numRows" format="integer"/>
+    </declare-styleable>
+
+</resources>
