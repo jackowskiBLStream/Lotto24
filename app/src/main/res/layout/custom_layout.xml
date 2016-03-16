@@ -10,11 +10,10 @@
     <com.blstream.lotto24.PixelGridView
         xmlns:custom = "http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
-        android:layout_height="147dp"
-        custom:numColums="10"
-        custom:numRows = "10"
-        android:id="@+id/pixel"
-        android:layout_weight="0.56" />
+        android:layout_height="match_parent"
+        custom:numColums="7"
+        custom:numRows = "7"
+        android:id="@+id/pixel" />
 
 
 </LinearLayout>

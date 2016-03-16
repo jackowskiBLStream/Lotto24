@@ -9,11 +9,15 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RectF;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.support.v4.view.GestureDetectorCompat;
 import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -23,26 +27,19 @@ import java.io.InputStream;
 /**
  *
  */
-public class PixelGridView extends View {
+public class PixelGridView extends View implements GestureDetector.OnGestureListener {
 
-
-    float x1, x2, y1, y2;
     private int numColumns, numRows;
     private int cellWidth, cellHeight;
     private TextPaint textPaint = new TextPaint();
-    private Paint greenPaint = new Paint();
     private Paint borderPaint = new Paint();
     private Bitmap bitmap;
     private int checkedCounter;
     private boolean[][] cellChecked = null;
-    private int height, width;
-    private boolean isSaved = false;
+    private int height, width = height;
     private OnSwipeListener onSwipeListener;
+    private GestureDetectorCompat gestureDetectorCompat;
 
-   /* public PixelGridView(Context context, int numColumns, int numRows) throws IOException {
-        this(context, null, numColumns, numRows);
-
-    }*/
 
     public PixelGridView(Context context, AttributeSet attrs) throws IOException {
         super(context, attrs);
@@ -51,25 +48,30 @@ public class PixelGridView extends View {
 
         String numColumns = attributeValuesArray.getString(R.styleable.PixelGridView_numColums);
         String numRows = attributeValuesArray.getString(R.styleable.PixelGridView_numRows);
-        if(numColumns != null){
+        if (numColumns != null) {
             this.numColumns = Integer.parseInt(numColumns);
-        }else{
+        } else {
             this.numColumns = 1;
         }
-        if(numRows != null){
+        if (numRows != null) {
             this.numRows = Integer.parseInt(numRows);
-        } else{
+        } else {
             this.numRows = 1;
         }
 
         onSwipeListener = null;
         //Init only once(Manifest android:configChanges)
         textPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+        Paint greenPaint = new Paint();
         greenPaint.setStyle(Paint.Style.FILL_AND_STROKE);
         greenPaint.setColor(Color.GREEN);
         greenPaint.setStrokeWidth(10);
         borderPaint.setStyle(Paint.Style.STROKE);
-        borderPaint.setStrokeWidth(20);
+        borderPaint.setStrokeWidth(5);
+        textPaint.setShadowLayer(10, 10, 10, Color.BLACK);
+
+
+        gestureDetectorCompat = new GestureDetectorCompat(getContext(), this);
         setSaveEnabled(true);
 
     }
@@ -89,42 +91,24 @@ public class PixelGridView extends View {
         // resize the bit map
         matrix.postScale(scaleWidth, scaleHeight);
         // recreate the new Bitmap
-        Bitmap resizedBitmap = Bitmap.createBitmap(bm, 0, 0, width, height, matrix, false);
-        return resizedBitmap;
+        return Bitmap.createBitmap(bm, 0, 0, width, height, matrix, false);
     }
 
     public void decodeCheckMark() throws IOException {
         AssetManager assetManager = getContext().getAssets();
         InputStream inputStream = assetManager.open("check.png");
-        // bitmap = decodeSampledBitmapFromStream(inputStream, 100, 100 );
         bitmap = BitmapFactory.decodeStream(inputStream);
-        bitmap = getResizedBitmap(bitmap, cellWidth, cellHeight);
+        bitmap = getResizedBitmap(bitmap, cellHeight, cellWidth);
         inputStream.close();
     }
 
-    public int getNumColumns() {
-        return numColumns;
-    }
-
-    public void setNumColumns(int numColumns) throws IOException {
-        this.numColumns = numColumns;
-        calculateDimensions();
-    }
-
-    public int getNumRows() {
-        return numRows;
-    }
-
-    public void setNumRows(int numRows) throws IOException {
-        this.numRows = numRows;
-        calculateDimensions();
-    }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         try {
             calculateDimensions();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -134,11 +118,9 @@ public class PixelGridView extends View {
         if (numColumns < 1 || numRows < 1) {
             return;
         }
-
         if (getWidth() > getHeight()) {
             cellHeight = getHeight() / numRows;
             cellWidth = cellHeight;
-
         } else {
             cellWidth = getWidth() / numColumns;
             cellHeight = cellWidth;
@@ -154,7 +136,7 @@ public class PixelGridView extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
-        canvas.drawColor(Color.WHITE);
+        canvas.drawColor(Color.GRAY);
 
         if (numColumns == 0 || numRows == 0) {
             return;
@@ -171,10 +153,10 @@ public class PixelGridView extends View {
         drawNumbers(canvas);
         drawCheckMarks(canvas);
 
-        drawChessBoard(borderPaint, canvas, height, width);
+
+        drawChessBoard(borderPaint, canvas);
         Log.d("No. counter: ", String.valueOf(checkedCounter));
-
-
+        Log.d("POS After: ", String.valueOf(getHeight()) + " " + String.valueOf(getWidth()));
 
     }
 
@@ -199,8 +181,8 @@ public class PixelGridView extends View {
                         cellHeight / 2 - (textPaint.descent() + textPaint.ascent()) / 2, textPaint);
             }
         }
-
     }
+
 
     public void setColors() {
         if (checkedCounter == 6) {
@@ -212,28 +194,48 @@ public class PixelGridView extends View {
         }
     }
 
-    //TODO: height = width
-    public void drawChessBoard(Paint paint, Canvas canvas, int height, int width) {
+    private Path Star(float midX, float midY, float degrees) {
+        Path path = new Path();
+        Matrix mMatrix = new Matrix();
+        RectF bounds = new RectF();
 
-        for (int i = 1; i < numColumns; i++) {
-            canvas.drawLine(i * cellWidth, 0, i * cellWidth, height, paint);
-        }
+        path.moveTo(midX + cellWidth / 2, midY + (cellHeight * 3 / 4)); // right corner takes 1/4 of height below
+        path.lineTo(midX, midY + (cellHeight / 4));
+        path.lineTo(midX - (cellWidth / 2), midY + (cellHeight * 3 / 4));
+        path.lineTo(midX - (cellWidth / 5), midY);
+        path.lineTo(midX - (cellWidth / 2), midY - (cellHeight / 5));
+        path.lineTo(midX - (cellWidth / 7), midY - (cellHeight / 5));
+        path.lineTo(midX, midY - (cellHeight * 3 / 4));
+        path.lineTo(midX + (cellWidth / 5), midY - (cellHeight / 5));
+        path.lineTo(midX + (cellWidth / 2), midY - (cellHeight / 5));
+        path.lineTo(midX + (cellHeight * 2 / 7), midY);
+        path.lineTo(midX + (cellWidth / 2), midY + (cellHeight * 3 / 4));
+        path.computeBounds(bounds, true);
+        mMatrix.postRotate(degrees, bounds.centerX(), bounds.centerY());
+        path.transform(mMatrix);
+        return path;
 
-        for (int i = 1; i < numRows; i++) {
-            canvas.drawLine(0, i * cellHeight, width, i * cellHeight, paint);
-        }
-
-        canvas.drawRect(0, 0, width, height, paint);
     }
+
+
+    public void drawChessBoard(Paint paint, Canvas canvas) {
+        for (int i = 0; i < numColumns; i++) {
+            for (int j = 0; j < numRows; j++) {
+                canvas.drawPath(Star(cellWidth / 2 + (j * cellWidth),
+                        cellHeight / 2 + (i * cellHeight), i * numColumns + j * 15), paint);
+            }
+        }
+    }
+
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        ///FIXME: what does 5 do?
         if (event.getX() < width - 5 && event.getY() < height - 5) {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 int column = (int) (event.getX() / cellWidth);
                 int row = (int) (event.getY() / cellHeight);
-
-
+                //FIXME: WTF?
                 if (checkedCounter == 6 && !cellChecked[column][row]) {
 
                 } else if (cellChecked[column][row]) {
@@ -245,44 +247,17 @@ public class PixelGridView extends View {
                 }
                 invalidate();
             }
-            detectSwipe(event);
+            gestureDetectorCompat.onTouchEvent(event);
         }
-
-
         return true;
-    }
-
-    public void detectSwipe(MotionEvent event) {
-
-        switch (event.getAction()) {
-            // when user first touches the screen we get x and y coordinate
-            case MotionEvent.ACTION_DOWN: {
-                x1 = event.getX();
-                y1 = event.getY();
-                break;
-            }
-            case MotionEvent.ACTION_UP: {
-                x2 = event.getX();
-                y2 = event.getY();
-                if (x1 < x2) {
-                    onSwipeListener.onSwipeRight();
-
-                } else if (x1 > x2) {
-                    onSwipeListener.onSwipeLeft();
-                }
-                break;
-            }
-        }
     }
 
     @Override
     public Parcelable onSaveInstanceState() {
         Parcelable superState = super.onSaveInstanceState();
         SavedState ss = new SavedState(superState);
-        //ss.value = currentValue;
         ss.mArray = cellChecked;
         ss.mCheckCounter = checkedCounter;
-        isSaved = true;
         return ss;
     }
 
@@ -292,6 +267,55 @@ public class PixelGridView extends View {
         super.onRestoreInstanceState(ss.getSuperState());
         cellChecked = ss.mArray;
         checkedCounter = ss.mCheckCounter;
+    }
+
+    @Override
+    public boolean onDown(MotionEvent e) {
+        return false;
+    }
+
+    @Override
+    public void onShowPress(MotionEvent e) {
+
+    }
+
+    @Override
+    public boolean onSingleTapUp(MotionEvent e) {
+        return false;
+    }
+
+    @Override
+    public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+        return false;
+    }
+
+    @Override
+    public void onLongPress(MotionEvent e) {
+
+    }
+
+    @Override
+    public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+        Log.i("TAK: ", "onFling has been called!");
+        final int SWIPE_MIN_DISTANCE = 120;
+        final int SWIPE_MAX_OFF_PATH = 250;
+        final int SWIPE_THRESHOLD_VELOCITY = 200;
+        try {
+            if (Math.abs(e1.getY() - e2.getY()) > SWIPE_MAX_OFF_PATH)
+                return false;
+            if (e1.getX() - e2.getX() > SWIPE_MIN_DISTANCE
+                    && Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
+                Log.i("TAK: ", "Right to Left");
+                onSwipeListener.onSwipeLeft();
+            } else if (e2.getX() - e1.getX() > SWIPE_MIN_DISTANCE
+                    && Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
+                Log.i("TAK: ", "Left to Right");
+                onSwipeListener.onSwipeRight();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return true;
     }
 
     public interface OnSwipeListener {
@@ -322,7 +346,7 @@ public class PixelGridView extends View {
         private SavedState(Parcel in) {
             super(in);
             boolean[][] array;
-            final int N = in.readInt();
+            int N = in.readInt();
             array = new boolean[N][N];
             for (int i = 0; i < N; i++) {
                 array[i] = in.createBooleanArray();
@@ -337,8 +361,8 @@ public class PixelGridView extends View {
             //out.writeInt(array);
             final int N = mArray.length;
             out.writeInt(N);
-            for (int i = 0; i < N; i++) {
-                out.writeBooleanArray(mArray[i]);
+            for (boolean[] aMArray : mArray) {
+                out.writeBooleanArray(aMArray);
             }
             out.writeInt(mCheckCounter);
         }

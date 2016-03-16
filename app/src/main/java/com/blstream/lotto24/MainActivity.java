@@ -1,19 +1,15 @@
 package com.blstream.lotto24;
 
-import android.support.v4.app.FragmentManager;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.view.View;
+import android.support.v7.app.AppCompatActivity;
 import android.widget.Toast;
-
-import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-       // setContentView(R.layout.activity_main);
+        // setContentView(R.layout.activity_main);
        /* PixelGridView pixelGrid = null;
         try {
             pixelGrid = new PixelGridView(this, 7, 7);
@@ -26,6 +22,7 @@ public class MainActivity extends AppCompatActivity {
 
         PixelGridView pixel = (PixelGridView) findViewById(R.id.pixel);
 
+
         pixel.setOnSwipeListener(new PixelGridView.OnSwipeListener() {
             @Override
             public void onSwipeRight() {
@@ -37,7 +34,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), "Left swipe detected", Toast.LENGTH_SHORT).show();
             }
         });
-
 
 
     }
